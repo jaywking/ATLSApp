@@ -1,0 +1,10 @@
+fastapi
+nicegui
+uvicorn
+python-dotenv
+requests
+tqdm
+googlemaps
+docxtpl
+pandas
+tenacity
