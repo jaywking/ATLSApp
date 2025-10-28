@@ -85,6 +85,8 @@ async def _execute_job(
     except ValueError:
       payload = {}
 
+    print(f'API call to {path} -> status={response.status_code}, payload={payload}')
+
     if response.ok and payload.get('success'):
       message = payload.get('stdout') or default_success_detail
       status_label.text = message
