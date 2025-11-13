@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.services._runner import run_script
+from app.services.preflight import run_preflight
 from app.services.schemas import ScriptResponse
 
 router = APIRouter(prefix='/api', tags=['facilities'])
@@ -9,7 +10,14 @@ router = APIRouter(prefix='/api', tags=['facilities'])
 @router.post('/facilities', response_model=ScriptResponse)
 async def fetch_facilities() -> ScriptResponse:
     try:
-        return await run_script('fetch_medical_facilities.py')
+        issues = run_preflight(check_tables=True)
+        if issues:
+            raise HTTPException(status_code=400, detail='; '.join(issues))
+
+        return await run_script(
+            'fetch_medical_facilities.py',
+            args=('--dry-run',),
+        )
     except FileNotFoundError:
         return ScriptResponse(
             success=False,

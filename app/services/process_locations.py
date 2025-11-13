@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services._runner import run_script
+from app.services.preflight import run_preflight
 from app.services.schemas import ScriptResponse
 
 router = APIRouter(prefix='/api', tags=['process'])
@@ -57,6 +58,10 @@ def _resolve_selection(table_map: Dict[str, str], requested_key: Optional[str]) 
 @router.post('/process', response_model=ScriptResponse)
 async def process_locations(payload: TableRequest) -> ScriptResponse:
     try:
+        issues = run_preflight(check_tables=True)
+        if issues:
+            raise HTTPException(status_code=400, detail='; '.join(issues))
+
         table_map = _load_table_map()
         selected_key = _resolve_selection(table_map, payload.table_key)
         selection_index = list(table_map.keys()).index(selected_key) + 1
