@@ -2,6 +2,9 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import logging
+import traceback
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -11,6 +14,7 @@ from app.services.schemas import ScriptResponse
 router = APIRouter(prefix='/api', tags=['process'])
 
 _TABLE_MAP_PATH = Path(__file__).resolve().parent.parent.parent / 'notion_tables.json'
+logger = logging.getLogger(__name__)
 
 
 class TableRequest(BaseModel):
@@ -69,6 +73,7 @@ async def process_locations(payload: TableRequest) -> ScriptResponse:
             stderr='process_new_locations.py not found in scripts/.',
         )
     except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.error('Process locations failed: %s\n%s', exc, traceback.format_exc())
         return ScriptResponse(
             success=False,
             returncode=1,

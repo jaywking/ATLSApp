@@ -240,6 +240,8 @@ Keep this handbook updated when you make structural changes so future hand-offs 
   - Generate LHA (`scripts/generate_lha_forms.py`)
 - Each action triggers the existing CLI scripts asynchronously and streams summaries into the page log.
 - Logging: `logs/jobs.log` captures script name, arguments, return code, duration, and truncated stdout/stderr for every run. The NiceGUI pages also keep a per-session log panel for quick troubleshooting.
+- Production selection: the Process/Reprocess cards load `notion_tables.json` and present a dropdown of productions. The first entry is auto-selected; pick another production if needed before clicking **Run**. The stdout/stderr from the CLI run is echoed in the status card so you can see prompts, validation, and results without opening the terminal.
+- Windows note: when running with `uvicorn --reload` on Windows, the service adapters automatically fall back to a synchronous subprocess launcher to avoid the platform's `NotImplementedError`. No manual action needed, but leave the terminal open so you can spot the API call log lines (e.g., `API call to /api/process -> status=200, ...`) after each run.
 
 ### Legacy Streamlit UI
 - Location: `ui/app.py` (Streamlit). Optional password via `.env` `LOCATIONSYNC_PASSWORD` (or `APP_PASSWORD`).
@@ -261,6 +263,7 @@ Keep this handbook updated when you make structural changes so future hand-offs 
   - `uvicorn app.main:app --reload` -> open `http://127.0.0.1:8000`
   - Run "Process Locations" (or other actions) and confirm status/log output; check `logs/jobs.log` for matching entries
   - Legacy: `streamlit run ui/app.py` remains available if you prefer the older control surface
+- Generate `notion_tables.json` (required for the dropdown) with `python -X utf8 -m scripts.sync_prod_tables`. The `-X utf8` flag prevents Windows console encoding errors triggered by the Unicode status icons the script prints.
 - Common fixes
   - Missing `notion_tables.json` -> run Sync
   - Status options missing -> rerun Sync with `--autofix-status` or add manually in Notion
@@ -284,10 +287,12 @@ Keep this handbook updated when you make structural changes so future hand-offs 
   - Retries are built in; rerun. Reduce concurrency in `scripts/fetch_medical_facilities.py` if needed.
 - Processing shows 0 items
   - Ensure Status is set to `Ready` (or `Config.STATUS_ON_RESET`) and `Place_ID` is empty for new rows; or toggle “Process all rows”.
-- Re-process doesn’t update master
+- Re-process doesn't update master
   - Confirm `Config.LOCATIONS_MASTER_DB` is correct and network/API permissions are valid.
 - UI shows no productions
-  - Run “Sync Production Tables” to regenerate `notion_tables.json`.
+  - Run "Sync Production Tables" to regenerate `notion_tables.json`.
+- `NotImplementedError` when launching scripts from the UI on Windows
+  - This occurred when asyncio subprocesses were not supported under `uvicorn --reload`. The adapters now fall back to a synchronous launcher automatically; just ensure you are on the latest code and keep the terminal open to confirm the `API call to /api/...` log line shows `status=200`.
 
 ---
 

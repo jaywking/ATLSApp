@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -41,26 +42,43 @@ async def run_script(
     if env_overrides:
         env.update(env_overrides)
 
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        '-m',
-        module_name,
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.PIPE if input_data is not None else None,
-        env=env,
-    )
+    try:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            '-m',
+            module_name,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.PIPE if input_data is not None else None,
+            env=env,
+        )
 
-    stdout_bytes, stderr_bytes = await process.communicate(
-        input_data.encode('utf-8') if input_data is not None else None
-    )
+        stdout_bytes, stderr_bytes = await process.communicate(
+            input_data.encode('utf-8') if input_data is not None else None
+        )
+        returncode = process.returncode
+    except NotImplementedError:
+        def _run_sync() -> subprocess.CompletedProcess[bytes]:
+            return subprocess.run(
+                [sys.executable, '-m', module_name, *args],
+                input=input_data.encode('utf-8') if input_data is not None else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+
+        completed = await asyncio.to_thread(_run_sync)
+        stdout_bytes = completed.stdout
+        stderr_bytes = completed.stderr
+        returncode = completed.returncode
+
     stdout_text = stdout_bytes.decode('utf-8', errors='replace')
     stderr_text = stderr_bytes.decode('utf-8', errors='replace')
 
     response = ScriptResponse(
-        success=process.returncode == 0,
-        returncode=process.returncode,
+        success=returncode == 0,
+        returncode=returncode,
         stdout=stdout_text.strip() or None,
         stderr=stderr_text.strip() or None,
     )
